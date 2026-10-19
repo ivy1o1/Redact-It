@@ -1,46 +1,28 @@
-# Python
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+ 
+# Python anywhere outside backend/
 __pycache__/
 *.py[cod]
-*.egg-info/
-.eggs/
-build/
-dist/
-
-# Virtual environments
 .venv/
 venv/
 env/
-
+ 
 # Secrets and local config - never commit
 .env
 .env.*
 !.env.example
 *.pem
 *.key
-
-# Test / tooling caches
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
-.coverage
-htmlcov/
-
-# RedactIt runtime data: uploads, extracted text, generated files.
-# Everything the app writes at runtime stays out of version control.
-backend/var/
+ 
+# Runtime data: uploads, extracted text, generated documents
 var/
 uploads/
 downloads/
 tmp/
 temp/
 *.log
-
-# Generated documents - never commit user or synthetic output
 *.redacted.pdf
 *.redacted.docx
-
-# OS / editor
-.DS_Store
-Thumbs.db
-.idea/
-.vscode/
