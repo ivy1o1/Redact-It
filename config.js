@@ -23,5 +23,5 @@
    storage paths stay in the backend's own environment.
 ----------------------------------------------------------------------------- */
 window.RedactItConfig = {
-  apiBase: "http://127.0.0.1:8000/api/v1",
+  apiBase: "https://redact-it.onrender.com/api/v1",
 };
