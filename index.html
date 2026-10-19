@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#000000" />
+
+    <title>RedactIt — Document Redaction with Human Control</title>
+    <meta
+      name="description"
+      content="RedactIt turns a plain-English instruction into candidate redactions for PDF and DOCX documents. You approve or reject each detection before anything is removed, and the sensitive content is stripped from the output rather than covered by an overlay."
+    />
+
+    <!-- No og:url or og:image: this page has no deployed production URL or authored social image yet. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="RedactIt" />
+    <meta property="og:title" content="RedactIt — Document Redaction with Human Control" />
+    <meta
+      property="og:description"
+      content="Describe what to redact in plain English. Review what the local model proposes. Approve every removal yourself."
+    />
+    <meta name="twitter:card" content="summary" />
+
+    <!-- Inline so the page never requests a favicon it does not ship. -->
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect width='48' height='48' rx='12' fill='%23000000'/%3E%3Cg transform='translate(6 6) scale(0.75)'%3E%3Cpath d='M5.5 7.5 24 24 5.5 40.5Z' fill='none' stroke='%23ffffff' stroke-width='3.4' stroke-linejoin='round'/%3E%3Cpath d='M42.5 7.5 24 24 42.5 40.5Z' fill='%23ffffff'/%3E%3C/g%3E%3C/svg%3E"
+    />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preconnect" href="https://db.onlinewebfonts.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <!--
+      Display face "BubbledotICG-FinePos" is licensed CC BY 4.0 by its author; the
+      credit required by that licence is rendered in the page footer.
+    -->
+    <link
+      href="https://db.onlinewebfonts.com/c/8cb707a9b8a73f8a7403336b861c3074?family=BubbledotICG-FinePos"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+
+  <body>
+    <!--
+      Brand mark. No logo asset ships in this repository, so this inline SVG is the
+      intentional stand-in: two triangles meeting at a point — the outlined half is a
+      proposed candidate, the solid half is content that has been removed. It is
+      defined once here and reused by <use> in the header and the composer.
+    -->
+    <svg class="sprite" aria-hidden="true" focusable="false" width="0" height="0">
+      <symbol id="ri-mark" viewBox="0 0 48 48">
+        <path
+          d="M5.5 7.5 24 24 5.5 40.5Z"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.6"
+          stroke-linejoin="round"
+        />
+        <path d="M42.5 7.5 24 24 42.5 40.5Z" fill="currentColor" />
+      </symbol>
+    </svg>
+
+    <!-- ============================= FIRST VIEWPORT ============================= -->
+    <section class="hero" id="top" aria-labelledby="hero-heading">
+      <div class="hero__media" aria-hidden="true">
+        <!--
+          The loop is the background. Its sources are attached by main.js only when
+          motion and bandwidth allow, so a constrained device never downloads the
+          13.8 MB file; the local copy is tried first and CloudFront only answers if
+          the local one is missing.
+        -->
+        <video
+          class="hero__video"
+          id="hero-video"
+          autoplay
+          muted
+          loop
+          playsinline
+          preload="none"
+          tabindex="-1"
+          data-src-local="assets/hero-loop.mp4"
+          data-src-remote="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260809_012548_ef22562c-c0ae-4816-ad9d-f8922af4e6a7.mp4"
+        ></video>
+        <!--
+          The loop's own first frame, held behind it. It is what reduced-motion,
+          save-data, no-JavaScript and blocked-CDN visitors see instead of the
+          animation, so the composition never collapses to a black rectangle, and it
+          is what fills the gap before the first video frame is decoded. main.js
+          retires it once the loop is actually playing.
+        -->
+        <span class="hero__still"></span>
+        <!--
+          Contrast is engineered, not hoped for. The scrim sits directly on the loop
+          and everything above it is composited onto what the scrim leaves behind, so
+          the numbers in styles.css §3 stay the reference for text legibility.
+        -->
+        <span class="hero__scrim"></span>
+        <span class="hero__grain"></span>
+      </div>
+
+      <header class="site-header">
+        <div class="site-header__cluster">
+          <a class="logo-orb" href="#top" aria-label="RedactIt — home">
+            <svg class="logo-orb__mark" role="img" aria-hidden="true" focusable="false">
+              <use href="#ri-mark" />
+            </svg>
+            <span class="logo-orb__name">RedactIt</span>
+          </a>
+
+          <nav class="nav-pill" aria-label="Primary">
+            <ul class="nav-pill__list">
+              <li>
+                <!-- Only real destinations: Home and the analysis interface below. -->
+                <a class="nav-pill__link" href="#top" aria-current="page">Home</a>
+              </li>
+              <li>
+                <a class="nav-pill__link" href="#reference-section">Analyze</a>
+              </li>
+            </ul>
+            <a class="nav-pill__cta" href="#reference-section">Get Started</a>
+          </nav>
+
+          <button
+            class="menu-orb"
+            type="button"
+            aria-expanded="false"
+            aria-controls="mobile-menu"
+            aria-label="Open navigation menu"
+          >
+            <span class="menu-orb__bars" aria-hidden="true"></span>
+          </button>
+        </div>
+      </header>
+
+      <div class="hero__content">
+        <div class="hero__stack">
+          <p class="trust-pill">
+            <span class="trust-pill__dot" aria-hidden="true"></span>
+            AI-assisted. Human-reviewed.
+          </p>
+
+          <h1 class="hero__heading" id="hero-heading">
+            <span class="hero__line">Your documents.</span>
+            <span class="hero__line">Your control.</span>
+          </h1>
+
+          <p class="hero__copy">
+            Describe what should be redacted. Review what AI finds. Stay in control of every
+            approval.
+          </p>
+
+          <div class="hero__actions">
+            <a class="cta-button" href="#reference-section">Get Started</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="hero__foot">
+        <ul class="principles">
+          <li class="principle">
+            <span class="principle__title">Plain-English instructions</span>
+            <span class="principle__note">No regular expressions to write</span>
+          </li>
+          <li class="principle">
+            <span class="principle__title">Human approval</span>
+            <span class="principle__note">Nothing is removed until you approve it</span>
+          </li>
+          <li class="principle">
+            <span class="principle__title">Checked output</span>
+            <span class="principle__note">
+              Generated files are re-read for the text you approved for removal
+            </span>
+          </li>
+        </ul>
+        <p class="hero__model">
+          Runs on a local Gemma model you host yourself — no cloud redaction API.
+        </p>
+      </div>
+    </section>
+
+    <!-- ========================== ANALYSIS INTERFACE ========================== -->
+    <!--
+      Composition follows the supplied interface reference (Reference B): dark canvas,
+      one illuminated focal mark, a centred prompt, a translucent composer card with
+      grouped utility controls, and small action chips underneath. Its content is
+      RedactIt's real workflow and it is wired to the actual backend routes.
+    -->
+    <section class="reference" id="reference-section" tabindex="-1" aria-labelledby="reference-heading">
+      <div class="reference__atmos" aria-hidden="true">
+        <span class="reference__beam"></span>
+        <span class="reference__glow"></span>
+        <span class="reference__grain"></span>
+      </div>
+
+      <div class="reference__inner">
+        <noscript>
+          <p class="notice notice--warn">
+            JavaScript is switched off, so this form cannot talk to the RedactIt backend. The
+            landing page, its navigation and this section's explanation still read normally; to
+            analyse a document without a browser, call the API directly — the routes, example
+            requests and model prerequisites are documented in <code>backend/README.md</code>.
+          </p>
+        </noscript>
+
+        <div class="composer">
+          <div class="composer__focal">
+            <span class="composer__mark" aria-hidden="true">
+              <svg viewBox="0 0 48 48" focusable="false"><use href="#ri-mark" /></svg>
+            </span>
+            <h2 class="composer__title" id="reference-heading">What should we redact?</h2>
+            <p class="composer__sub">
+              Add a PDF or DOCX, describe the sensitive information in plain English, and the
+              local Gemma model turns your words into a set of candidate matches. Nothing is
+              removed until you approve each one here.
+            </p>
+          </div>
+
+          <form class="composer__card" id="analyze-form" novalidate>
+            <div class="composer__attach">
+              <input
+                class="composer__file-input"
+                type="file"
+                id="files"
+                name="files"
+                accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                multiple
+              />
+              <label class="tool-btn" for="files">
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <path
+                    d="M12 5v14M5 12h14"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.7"
+                    stroke-linecap="round"
+                  />
+                </svg>
+                Add documents
+              </label>
+              <p class="composer__limit" id="file-limit">PDF or DOCX · up to 5 files · 25 MB each</p>
+              <ul class="file-list" id="file-list" aria-label="Selected documents"></ul>
+            </div>
+
+            <label class="composer__label" for="instruction">
+              Instruction
+              <span class="composer__label-note">Required · plain English · up to 2000 characters</span>
+            </label>
+            <textarea
+              class="composer__input"
+              id="instruction"
+              name="instruction"
+              rows="2"
+              maxlength="2000"
+              autocomplete="off"
+              spellcheck="true"
+              placeholder="Describe the sensitive information you want to remove…"
+              aria-describedby="instruction-error"
+              required></textarea>
+            <p class="field-error" id="instruction-error" role="alert" hidden></p>
+
+            <div class="composer__bar">
+              <span class="mode-select">
+                <label class="mode-select__label" for="mode">Interpret with</label>
+                <select class="mode-select__field" id="mode" name="interpretation_mode">
+                  <option value="model">Local Gemma</option>
+                  <option value="deterministic">Keywords only</option>
+                </select>
+              </span>
+
+              <button class="tool-btn tool-btn--quiet" type="button" id="clear-btn" hidden>
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <path
+                    d="M6 6l12 12M18 6L6 18"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.7"
+                    stroke-linecap="round"
+                  />
+                </svg>
+                Clear
+              </button>
+
+              <span class="composer__spacer"></span>
+
+              <button class="send-btn" type="submit" id="analyze-btn">
+                <svg class="send-btn__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <path
+                    d="M5 12h13M12.5 5.5 19 12l-6.5 6.5"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.9"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+                <span class="send-btn__spinner" aria-hidden="true"></span>
+                <span class="visually-hidden" id="analyze-btn-text">Analyze documents</span>
+              </button>
+            </div>
+          </form>
+
+          <ul class="chips" id="example-chips" aria-label="Example instructions">
+            <li>
+              <button class="chip" type="button" data-example="Remove every phone number and email address.">
+                Phone numbers &amp; emails
+              </button>
+            </li>
+            <li>
+              <button
+                class="chip"
+                type="button"
+                data-example="Redact all person names and home addresses, keep the job titles."
+              >
+                Names &amp; addresses
+              </button>
+            </li>
+            <li>
+              <button class="chip" type="button" data-example="Remove every date, especially dates of birth.">
+                Dates of birth
+              </button>
+            </li>
+            <li>
+              <button
+                class="chip"
+                type="button"
+                data-example="Redact card numbers, social security numbers and zip codes."
+              >
+                Numbers &amp; IDs
+              </button>
+            </li>
+          </ul>
+        </div>
+
+        <!-- ------------------------------ RESULTS ------------------------------ -->
+        <div class="results" id="results" hidden aria-live="polite">
+          <div class="results__head">
+            <h3 class="results__title" id="results-title">Candidates found</h3>
+            <p class="results__meta" id="results-meta"></p>
+            <button class="ghost-btn" type="button" id="restart-btn">Discard and start over</button>
+          </div>
+
+          <p class="progress" id="progress" role="status" hidden>
+            <span class="progress__dot" aria-hidden="true"></span>
+            <span id="progress-text">Working…</span>
+          </p>
+
+          <div class="notices" id="notices"></div>
+
+          <details class="plan" id="plan" hidden>
+            <summary>How the instruction was interpreted</summary>
+            <div class="plan__body" id="plan-body"></div>
+          </details>
+
+          <div class="docs" id="docs"></div>
+
+          <div class="action-bar" id="action-bar" hidden>
+            <p class="action-bar__tally" id="tally" aria-live="polite"></p>
+            <button class="cta-button cta-button--dark" type="button" id="redact-btn">
+              Redact the approved items
+            </button>
+          </div>
+
+          <div class="outputs" id="outputs"></div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="site-footer">
+      <p>
+        RedactIt proposes candidates from a fixed set of detectors and does not guarantee that all
+        sensitive data is found. Review each detection, and read the verification report before you
+        distribute an output.
+      </p>
+      <p class="site-footer__credit">
+        Display type:
+        <a
+          class="site-footer__link"
+          href="https://www.onlinewebfonts.com/fonts"
+          rel="license noopener"
+          target="_blank"
+          >Web Fonts</a
+        >, CC BY 4.0.
+      </p>
+    </footer>
+
+    <!-- ============================ MOBILE MENU ============================ -->
+    <div class="menu-sheet" id="mobile-menu" hidden>
+      <nav class="menu-sheet__nav" aria-label="Primary mobile">
+        <ul>
+          <li><a class="menu-sheet__link" href="#top" aria-current="page">Home</a></li>
+          <li><a class="menu-sheet__link" href="#reference-section">Analyze</a></li>
+          <li><a class="menu-sheet__link menu-sheet__link--cta" href="#reference-section">Get Started</a></li>
+        </ul>
+      </nav>
+    </div>
+
+    <script src="config.js"></script>
+    <script src="main.js"></script>
+  </body>
+</html>
