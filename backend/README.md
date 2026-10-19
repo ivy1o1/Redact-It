@@ -91,6 +91,9 @@ Invoke-RestMethod "http://127.0.0.1:8000/api/v1/health/model"   # reports ready 
 If you would rather not run a model at all, set `INTERPRETATION_MODE=deterministic` (or pass
 `interpretation_mode=deterministic` per request) and skip steps 3–4; see §7.
 
+Everything above is the API on its own. A static web interface for it lives in the repository root
+and is documented in §11.
+
 ## 2. Configuration
 
 Configuration is environment-driven; `.env.example` is the reference. The settings that matter:
@@ -329,3 +332,102 @@ configured. If you want them gone:
 ```
 
 Decide for yourself whether to run this; removing them is optional and does not affect the app.
+
+## 11. Web UI (static front end)
+
+The repository root holds a dependency-free interface for this API: `index.html`, `styles.css`,
+`main.js`, `config.js` and `assets/` (the hero loop and its poster). There is no build step, no
+package manager and no framework — open the
+page with any static file server while the API is running.
+
+```powershell
+# from the repository root, with the API already running on port 8000 (§1 step 5)
+python -m http.server 5173 --bind 127.0.0.1
+# then open http://127.0.0.1:5173
+```
+
+**The model is a separate prerequisite, not an optional extra.** The interface does not probe the
+model on load — there is no status readout while the page is idle. If llama-server is not running,
+`interpretation_mode=model` requests fail with `MODEL_UNAVAILABLE`, and the result panel then shows
+the backend's own hint plus the **Keywords only** fallback. A hosted copy of this page cannot reach a
+model running on your laptop — the backend and llama-server have to run on the same machine as each
+other, which is what "local-first" means here. `GET /api/v1/health/model` is still there for you to
+check by hand (§1 step 4).
+
+### How the UI is configured
+
+`main.js` resolves the API base URL in this order:
+
+1. `?api=<url>` in the page address — for pointing one copy of the UI at a second backend.
+2. `window.RedactItConfig.apiBase` in `config.js`.
+3. The page's own origin + `/api/v1` — correct when the UI is served by the backend itself.
+
+`config.js` ships with `http://127.0.0.1:8000/api/v1` for the §1 local setup. There are no secrets
+in it: model settings, keys and storage paths stay in the backend's environment (§2), and the
+browser never learns them. The default CORS allow-list already covers
+`http://localhost:5173` / `http://127.0.0.1:5173`; add another origin via `CORS_ALLOW_ORIGINS` if
+you serve the page elsewhere.
+
+### Hero background
+
+The hero's background **is** the MotionSites AI Runtime loop, not a reconstruction of it. Four layers
+stack inside `.hero__media`, which is `aria-hidden` and has `pointer-events: none`, so assistive
+technology and the keyboard never see any of them:
+
+| Layer | What it is |
+| --- | --- |
+| `.hero__video` | The loop itself — glyph field, rose dome and light wave all come from the footage. |
+| `.hero__still` | The loop's own first frame, exported to `assets/hero-loop-poster.jpg`; retired the moment a real frame is playing. |
+| `.hero__scrim` | Darkening so the loop's brightest band cannot out-shine the copy, and a landing on black at the section seam. |
+| `.hero__grain` | Static 3px dot grid, `mix-blend-mode: overlay`, masked to the lower band to tie the loop to the flat black below it. |
+
+`assets/hero-loop.mp4` (13.8 MB) is served from the repository, so the page normally never contacts
+a CDN. `main.js` attaches two `<source>` elements — the local file first, the CloudFront original as
+fallback — and the browser walks them in order, so a missing local copy falls through with no manual
+error handling. Sources are attached only when `shouldLoadVideo()` passes: not under
+`prefers-reduced-motion`, `save-data`, or a 2G-class connection. Because of that gate the 13.8 MB is
+never requested by those visitors, and the poster — which is the loop's own opening frame — carries
+the whole composition instead. Reduced motion therefore gets a frozen frame of the same design
+rather than a different design.
+
+The footage is a saturated magenta that fights every token in the palette, so it is neutralised by a
+CSS `filter` (`saturate` / `hue-rotate` / `brightness` / `contrast`) applied identically to the video
+and the poster, which makes the handover between them invisible.
+
+Text legibility is measured rather than estimated: the ratios in the `styles.css` §3 comment come
+from screenshots of the composited backdrop with the text hidden, at 1440 / 834 / 390 wide. The
+headline is the binding constraint — it sits on the dome's rim, the brightest thing the loop shows —
+and clears 4.8:1 for white at desktop against a reference headline at roughly 3:1.
+
+The same loop is what the next section is crossfaded from: `.hero::after` guarantees the seam starts
+from solid black whatever frame is playing, and `.reference::before` carries a dim rose wash down
+from it. Both that wash and `.reference__beam` are clipped by the section's `overflow: hidden`, so
+each is masked to fade in rather than being sliced at the boundary.
+
+### What each control calls
+
+| Interface control | Backend call |
+| --- | --- |
+| **Analyze documents** (files + instruction + mode) | `POST /api/v1/analyze` |
+| Per-detection keep/redact, **All redact** / **All keep** | local state, then `POST /api/v1/sessions/{id}/review` |
+| **Redact the approved items** | `POST /api/v1/sessions/{id}/redact` |
+| **Download** on each output card | `GET /api/v1/downloads/{token}` |
+| **Discard and start over** | `DELETE /api/v1/sessions/{id}` |
+
+The UI adds no policy of its own: every detection defaults to **keep**, the review POST sends
+exactly the ids you approved, and the residual-text check, notices and limitation list shown per
+output come straight from the backend response. Errors render with their machine code
+(`MODEL_UNAVAILABLE`, `SESSION_EXPIRED`, `FILE_TOO_LARGE`, …) next to the backend's human message,
+and the composer stays usable so you can retry.
+
+### Privacy of the page itself
+
+The browser sends only the files you pick and the instruction you type, and only to the configured
+backend origin — never to llama-server on `:8080`. The page loads two third-party resources for the
+landing screen (the Inter and Bubbledot web fonts); neither receives document content, and there is
+no analytics or telemetry script. The hero loop is same-origin — CloudFront is only a fallback
+source and is not requested while `assets/hero-loop.mp4` is present — and it is not fetched at all
+under `prefers-reduced-motion`, `save-data` or a 2G-class connection. With JavaScript off the
+page still reads completely and a `<noscript>` notice in the interface section explains how to call
+the API directly instead.
+
